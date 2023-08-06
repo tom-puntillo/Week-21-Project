@@ -15,21 +15,5 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 3.0" # Require version 3.0 or higher of the AWS provider
     }
-    http = {
-      source  = "hashicorp/http"
-      version = "3.4.0" # Require version 3.4.0 of the HTTP provider
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "3.1.0" # Require version 3.1.0 of the Random provider
-    }
-    local = {
-      source  = "hashicorp/local"
-      version = "2.4.0" # Require version 2.4.0 of the Local provider
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "4.0.4" # Require version 4.0.4 of the TLS provider
-    }
   }
 }

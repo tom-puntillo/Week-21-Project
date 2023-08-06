@@ -14,6 +14,26 @@ resource "aws_security_group" "asg-sg" {
 
   # Ingress rule to allow HTTP access from anywhere
   ingress {
+    security_groups = [aws_security_group.alb_sg.id]
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+  }
+
+  # Egress rule to allow all traffic from instances to the Internet
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "alb_sg" {
+  name = "week_21_alb_sg"
+
+  # Ingress rule to allow HTTP access from anywhere
+  ingress {
     cidr_blocks = [
       "0.0.0.0/0"
     ]
@@ -30,6 +50,7 @@ resource "aws_security_group" "asg-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 
 # Create an AWS key pair for SSH access to instances
 resource "aws_key_pair" "key_pair" {
@@ -54,7 +75,7 @@ resource "aws_launch_template" "my-lt" {
   security_group_names = ["week-21-asg-sg"]
 
   # Provide user data from a base64-encoded file for instance customization
-  user_data = file("~/environment/Week-21-Project/user-data-base64.txt")
+  user_data = var.user_data
 }
 
 # Create an AWS Auto Scaling Group with instances using the launch template
@@ -64,10 +85,62 @@ resource "aws_autoscaling_group" "week-21-asg" {
   desired_capacity   = 3
   max_size           = 5
   min_size           = 2
+  target_group_arns  = [aws_lb_target_group.alb_tg.arn]
 
   # Use the previously created launch template for instance configuration
   launch_template {
     id      = aws_launch_template.my-lt.id
-    version = "$Latest"  # Use the latest version of the launch template
+    version = "$Latest" # Use the latest version of the launch template
   }
+}
+
+resource "aws_lb" "apache_lb" {
+  name               = "week-21-apache-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = var.subnets
+
+  enable_deletion_protection = false
+}
+
+resource "aws_lb_target_group" "alb_tg" {
+  name        = "week-21-alb-tg"
+  target_type = "instance"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_lb_listener" "alb_listener" {
+  load_balancer_arn = aws_lb.apache_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb_tg.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "alb_listener_rule" {
+  listener_arn = aws_lb_listener.alb_listener.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb_tg.arn
+  }
+
+  condition {
+    query_string {
+      key   = "health"
+      value = "check"
+    }
+  }
+}
+
+resource "aws_autoscaling_attachment" "alb_asg_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.week-21-asg.name
+  lb_target_group_arn    = aws_lb_target_group.alb_tg.arn
 }

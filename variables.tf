@@ -1,4 +1,4 @@
-# Define a Terraform variable to store the host IP address or CIDR block
+# Define a Terraform variable to store the host machine Public IP address or CIDR block
 variable "host_ip" {
   type    = string
   default = "34.239.187.126/32" # Set the default value to "54.226.218.101/32" if no value is provided
